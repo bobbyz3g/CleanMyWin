@@ -1,0 +1,17 @@
+node_modules/
+.pnpm-store/
+out/
+dist/
+release/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local-only agent instructions
+AGENTS.md

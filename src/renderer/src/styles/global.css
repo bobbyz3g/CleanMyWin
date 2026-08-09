@@ -1,0 +1,65 @@
+:root {
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+  color-scheme: light;
+  --canvas: oklch(96.8% 0.006 245);
+  --sidebar: oklch(94.3% 0.009 245);
+  --surface: oklch(99.2% 0.003 245);
+  --text: oklch(24% 0.018 245);
+  --text-secondary: oklch(39% 0.018 245);
+  --text-muted: oklch(51% 0.018 245);
+  --accent: oklch(61% 0.145 236);
+  --accent-ink: oklch(47% 0.126 236);
+  --accent-on: oklch(99% 0.008 236);
+  --accent-soft: oklch(92% 0.045 236);
+  --success: oklch(63% 0.135 151);
+  --success-ink: oklch(42% 0.102 151);
+  --success-soft: oklch(94% 0.036 151);
+  --divider: oklch(86% 0.009 245);
+  --divider-subtle: oklch(91% 0.006 245);
+  --ring-track: oklch(90% 0.012 245);
+  --row-hover: oklch(97% 0.009 236);
+  --focus: oklch(56% 0.16 236);
+  --radius-control: 8px;
+  --radius-icon: 10px;
+  --radius-panel: 14px;
+  --shadow-control: 0 1px 3px rgb(23 37 51 / 12%), 0 1px 1px rgb(23 37 51 / 5%);
+  --shadow-panel: 0 1px 3px rgb(23 37 51 / 11%), 0 12px 34px rgb(23 37 51 / 6%);
+  --shadow-float: 0 8px 24px rgb(23 37 51 / 16%);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--canvas); }
+body { margin: 0; min-width: 920px; min-height: 100vh; }
+button, a { touch-action: manipulation; }
+button { font-family: inherit; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --canvas: oklch(16% 0.009 245);
+    --sidebar: oklch(19% 0.011 245);
+    --surface: oklch(23% 0.012 245);
+    --text: oklch(92% 0.008 245);
+    --text-secondary: oklch(77% 0.011 245);
+    --text-muted: oklch(65% 0.013 245);
+    --accent: oklch(70% 0.13 236);
+    --accent-ink: oklch(79% 0.1 236);
+    --accent-on: oklch(18% 0.035 236);
+    --accent-soft: oklch(29% 0.055 236);
+    --success: oklch(72% 0.12 151);
+    --success-ink: oklch(80% 0.095 151);
+    --success-soft: oklch(27% 0.035 151);
+    --divider: rgb(255 255 255 / 9%);
+    --divider-subtle: rgb(255 255 255 / 6%);
+    --ring-track: oklch(30% 0.014 245);
+    --row-hover: rgb(255 255 255 / 3%);
+    --focus: oklch(74% 0.13 236);
+    --shadow-control: 0 1px 2px rgb(0 0 0 / 24%);
+    --shadow-panel: 0 1px 2px rgb(0 0 0 / 28%);
+  }
+}
