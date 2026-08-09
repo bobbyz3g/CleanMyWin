@@ -2,7 +2,7 @@
 
 CleanMyWin 是一个面向个人用户的 Windows 桌面清理工具。项目使用 Electron、React、TypeScript 和 electron-vite，界面结合 Windows 11 Fluent 的分层方式与 CleanMyMac 的单一主操作体验。
 
-当前版本提供可运行的应用外壳、磁盘概览、安全的扫描交互演示和受限的 preload IPC。它不会删除任何文件，后续实现真实清理前必须加入白名单、预览、确认和可恢复机制。
+当前版本提供可运行的应用外壳、磁盘概览和只读文件扫描。扫描范围参考 Mole `clean --dry-run` 的默认逻辑，结果按类别列出每一个候选文件的路径和大小。它不会删除或修改任何文件。
 
 ## 开发
 
@@ -19,6 +19,7 @@ pnpm dev
 
 ```powershell
 pnpm typecheck
+pnpm test
 pnpm build
 pnpm preview
 ```
@@ -37,7 +38,8 @@ src/shared     跨进程共享类型
 - 渲染进程不启用 Node.js 集成。
 - 仅通过 `contextBridge` 暴露最小 API。
 - 扫描与清理分离，默认只扫描。
-- 清理结果必须可复核，高风险位置永不默认选择。
+- 桌面、文档、下载目录以及符号链接不会进入扫描结果。
+- 当前没有清理 API 或清理按钮，所有结果仅供复核。
 
 ## 许可证
 

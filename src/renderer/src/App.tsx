@@ -1,76 +1,128 @@
 import {
   AppWindow,
-  Box,
   Check,
+  ChevronDown,
   ChevronRight,
+  Code2,
+  Cpu,
+  FileClock,
+  Files,
   Gauge,
+  Globe2,
   HardDrive,
   Info,
+  Search,
   Settings,
   ShieldCheck,
   Sparkles,
-  Trash2
+  Square
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import type { DiskOverview } from '../../shared/contracts'
+import type { DiskOverview, ScanCategoryId, ScanProgress, ScanResult } from '../../shared/contracts'
 import styles from './App.module.css'
 
-type ScanState = 'idle' | 'scanning' | 'complete'
-
-const scanStages = ['检查临时文件', '分析应用缓存', '整理系统日志', '确认安全项目']
+type ScanState = 'idle' | 'scanning' | 'stopping' | 'complete' | 'error'
 
 const navItems = [
-  { label: '智能清理', icon: Sparkles, active: true },
-  { label: '系统垃圾', icon: Trash2 },
-  { label: '大型文件', icon: HardDrive },
-  { label: '应用管理', icon: AppWindow }
+  { label: '扫描概览', icon: Search, active: true },
+  { label: '可清理文件', icon: Files },
+  { label: '应用缓存', icon: AppWindow }
 ]
 
+const categoryIcons: Record<ScanCategoryId, typeof FileClock> = {
+  'user-junk': FileClock,
+  'browser-cache': Globe2,
+  'application-cache': AppWindow,
+  'developer-cache': Code2,
+  'gpu-cache': Cpu
+}
+
 const formatBytes = (bytes: number): string => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 GB'
-  return `${(bytes / 1024 ** 3).toFixed(bytes > 1024 ** 3 * 100 ? 0 : 1)} GB`
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** unit
+  return `${value.toFixed(value >= 100 || unit === 0 ? 0 : value >= 10 ? 1 : 2)} ${units[unit]}`
 }
 
 export default function App(): React.JSX.Element {
   const [disk, setDisk] = useState<DiskOverview | null>(null)
   const [scanState, setScanState] = useState<ScanState>('idle')
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState<ScanProgress | null>(null)
+  const [result, setResult] = useState<ScanResult | null>(null)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [expandedGroups, setExpandedGroups] = useState<Set<ScanCategoryId>>(new Set())
+  const [visibleCounts, setVisibleCounts] = useState<Partial<Record<ScanCategoryId, number>>>({})
+  const apiAvailable = Boolean(window.cleanMyWin)
 
   useEffect(() => {
     if (!window.cleanMyWin) return
     void window.cleanMyWin.getDiskOverview().then(setDisk).catch(() => setDisk(null))
+    return window.cleanMyWin.onScanProgress(setProgress)
   }, [])
-
-  useEffect(() => {
-    if (scanState !== 'scanning') return
-
-    const timer = window.setInterval(() => {
-      setProgress((current) => {
-        const next = Math.min(current + 2, 100)
-        if (next === 100) {
-          window.clearInterval(timer)
-          setScanState('complete')
-        }
-        return next
-      })
-    }, 55)
-
-    return () => window.clearInterval(timer)
-  }, [scanState])
 
   const usagePercent = useMemo(() => {
     if (!disk?.totalBytes) return 0
     return Math.round((disk.usedBytes / disk.totalBytes) * 100)
   }, [disk])
 
-  const currentStage = scanStages[Math.min(Math.floor(progress / 25), scanStages.length - 1)]
-  const ringValue = scanState === 'scanning' ? progress : usagePercent
+  const isScanActive = scanState === 'scanning' || scanState === 'stopping'
+  const ringValue = scanState === 'complete' ? 100 : usagePercent
 
-  const beginScan = (): void => {
-    if (scanState === 'scanning') return
-    setProgress(0)
+  const beginScan = async (): Promise<void> => {
+    if (!window.cleanMyWin || isScanActive) return
     setScanState('scanning')
+    setProgress(null)
+    setResult(null)
+    setErrorMessage('')
+    setExpandedGroups(new Set())
+    setVisibleCounts({})
+
+    try {
+      const scanResult = await window.cleanMyWin.scanCleanableFiles()
+      if (!scanResult) {
+        setProgress(null)
+        setScanState('idle')
+        return
+      }
+      setResult(scanResult)
+      setScanState('complete')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '扫描未能完成')
+      setScanState('error')
+    }
   }
+
+  const stopScan = async (): Promise<void> => {
+    if (!window.cleanMyWin || scanState !== 'scanning') return
+    setScanState('stopping')
+    try {
+      const cancellationStarted = await window.cleanMyWin.cancelScan()
+      if (!cancellationStarted) setScanState('scanning')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '无法停止扫描')
+      setScanState('error')
+    }
+  }
+
+  const toggleGroup = (id: ScanCategoryId): void => {
+    setExpandedGroups((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const statusLabel = scanState === 'scanning'
+    ? progress?.currentLabel ?? '正在准备扫描'
+    : scanState === 'stopping'
+      ? '正在停止扫描'
+    : scanState === 'complete'
+      ? '扫描完成 · 仅展示结果'
+      : scanState === 'error'
+        ? '扫描遇到问题'
+        : '只读扫描已就绪'
 
   return (
     <div className={styles.shell}>
@@ -95,7 +147,7 @@ export default function App(): React.JSX.Element {
         <div className={styles.sidebarFooter}>
           <div className={styles.safetyNote}>
             <ShieldCheck size={18} aria-hidden="true" />
-            <div><strong>安全模式已开启</strong><span>扫描不会删除文件</span></div>
+            <div><strong>仅扫描模式</strong><span>当前版本无法删除文件</span></div>
           </div>
           <button className={styles.navItem} type="button">
             <Settings size={18} aria-hidden="true" />
@@ -107,8 +159,8 @@ export default function App(): React.JSX.Element {
       <main id="main-content" className={styles.workspace}>
         <header className={styles.header}>
           <div>
-            <p className={styles.eyebrow}>智能清理</p>
-            <h1>让电脑轻松一点</h1>
+            <p className={styles.eyebrow}>安全扫描</p>
+            <h1>看看哪些空间可以清理</h1>
           </div>
           <div className={styles.driveBadge}>
             <HardDrive size={17} aria-hidden="true" />
@@ -118,45 +170,111 @@ export default function App(): React.JSX.Element {
         </header>
 
         <section className={styles.hero} aria-live="polite">
-          <div className={styles.orbit} style={{ '--ring-progress': `${ringValue * 3.6}deg` } as React.CSSProperties}>
+          <div
+            className={`${styles.orbit} ${isScanActive ? styles.orbitScanning : ''}`}
+            style={{ '--ring-progress': `${ringValue * 3.6}deg` } as React.CSSProperties}
+          >
             <div className={styles.orbitInner}>
               {scanState === 'complete' ? <Check size={34} aria-hidden="true" /> : <Gauge size={34} aria-hidden="true" />}
-              <strong>{scanState === 'scanning' ? `${progress}%` : scanState === 'complete' ? '扫描完成' : `${usagePercent}%`}</strong>
-              <span>{scanState === 'idle' ? '磁盘已使用' : scanState === 'scanning' ? currentStage : '发现 3 类可清理项目'}</span>
+              <strong>
+                {scanState === 'scanning' ? '扫描中' : scanState === 'stopping' ? '停止中' : scanState === 'complete' ? formatBytes(result?.totalBytes ?? 0) : `${usagePercent}%`}
+              </strong>
+              <span>
+                {scanState === 'idle' ? '磁盘已使用' : isScanActive ? `${progress?.filesFound ?? 0} 个文件` : `${result?.fileCount ?? 0} 个候选文件`}
+              </span>
             </div>
           </div>
 
           <div className={styles.heroCopy}>
-            <div className={styles.statusLine}><span className={styles.statusPulse} />准备就绪</div>
-            <h2>{scanState === 'complete' ? '可以安全释放 2.7 GB' : '先扫描，再决定清理什么'}</h2>
-            <p>{scanState === 'complete' ? '已排除个人文件和仍在使用的应用数据，你可以在执行前复核每一项。' : '快速检查系统临时文件、应用缓存和可安全移除的日志。不会触碰文档、桌面或下载内容。'}</p>
-            <button className={styles.primaryButton} type="button" onClick={beginScan} disabled={scanState === 'scanning'}>
-              {scanState === 'scanning' ? '正在扫描' : scanState === 'complete' ? '重新扫描' : '开始扫描'}
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
+            <div className={`${styles.statusLine} ${scanState === 'error' ? styles.statusError : ''}`}>
+              <span className={styles.statusPulse} />{statusLabel}
+            </div>
+            <h2>
+              {scanState === 'complete'
+                ? `发现 ${result?.groups.length ?? 0} 类可清理内容`
+                : isScanActive
+                  ? `已发现 ${formatBytes(progress?.bytesFound ?? 0)}`
+                  : scanState === 'error'
+                    ? '扫描没有完成'
+                    : '先扫描，再查看每一个文件'}
+            </h2>
+            <p>
+              {scanState === 'complete'
+                ? '下方结果只用于查看。当前版本没有清理按钮，也不会修改或删除任何文件。'
+                : scanState === 'error'
+                  ? errorMessage
+                  : '检查系统临时文件和可重新生成的缓存。桌面、文档和下载目录始终排除。'}
+            </p>
+            <div className={styles.scanActions}>
+              {isScanActive ? (
+                <button className={styles.stopButton} type="button" onClick={() => void stopScan()} disabled={scanState === 'stopping'}>
+                  <Square size={14} fill="currentColor" aria-hidden="true" />
+                  {scanState === 'stopping' ? '正在停止' : '停止扫描'}
+                </button>
+              ) : (
+                <button className={styles.primaryButton} type="button" onClick={() => void beginScan()} disabled={!apiAvailable}>
+                  {scanState === 'complete' ? '重新扫描' : '开始扫描'}
+                  <ChevronRight size={18} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            {!apiAvailable && <small className={styles.runtimeHint}>扫描组件未就绪，请重新启动应用</small>}
           </div>
         </section>
 
         <section className={styles.summary} aria-labelledby="summary-title">
           <div className={styles.summaryHeading}>
-            <div><p className={styles.eyebrow}>本次检查</p><h2 id="summary-title">只处理明确安全的位置</h2></div>
-            <div className={styles.infoLabel}><Info size={16} aria-hidden="true" />执行清理前可逐项复核</div>
+            <div>
+              <p className={styles.eyebrow}>{result ? `${result.fileCount} 个文件 · ${formatBytes(result.totalBytes)}` : '扫描结果'}</p>
+              <h2 id="summary-title">{result ? '可清理候选内容' : '完成扫描后在这里逐项查看'}</h2>
+            </div>
+            <div className={styles.infoLabel}><Info size={16} aria-hidden="true" />仅展示，不执行清理</div>
           </div>
 
-          <div className={styles.categories}>
-            {[
-              { icon: Box, label: '临时文件', detail: 'Windows 与安装程序残留', value: scanState === 'complete' ? '1.8 GB' : '待扫描' },
-              { icon: AppWindow, label: '应用缓存', detail: '可重新生成的缓存内容', value: scanState === 'complete' ? '742 MB' : '待扫描' },
-              { icon: Gauge, label: '系统日志', detail: '过期的诊断与更新日志', value: scanState === 'complete' ? '186 MB' : '待扫描' }
-            ].map(({ icon: Icon, label, detail, value }) => (
-              <button className={styles.categoryRow} type="button" key={label}>
-                <span className={styles.categoryIcon}><Icon size={19} aria-hidden="true" /></span>
-                <span className={styles.categoryText}><strong>{label}</strong><small>{detail}</small></span>
-                <span className={styles.categoryValue}>{value}</span>
-                <ChevronRight size={17} aria-hidden="true" />
-              </button>
-            ))}
-          </div>
+          {result && result.groups.length > 0 ? (
+            <div className={styles.categories}>
+              {result.groups.map((group) => {
+                const Icon = categoryIcons[group.id]
+                const expanded = expandedGroups.has(group.id)
+                const visibleCount = visibleCounts[group.id] ?? 40
+                const files = group.files.slice(0, visibleCount)
+                return (
+                  <div className={styles.categoryBlock} key={group.id}>
+                    <button className={styles.categoryRow} type="button" onClick={() => toggleGroup(group.id)} aria-expanded={expanded}>
+                      <span className={styles.categoryIcon}><Icon size={19} aria-hidden="true" /></span>
+                      <span className={styles.categoryText}><strong>{group.label}</strong><small>{group.description} · {group.fileCount} 个文件</small></span>
+                      <span className={styles.categoryValue}>{formatBytes(group.sizeBytes)}</span>
+                      <span className={styles.categoryChevron}>
+                        {expanded ? <ChevronDown size={17} aria-hidden="true" /> : <ChevronRight size={17} aria-hidden="true" />}
+                      </span>
+                    </button>
+                    {expanded && (
+                      <div className={styles.fileList}>
+                        {files.map((file) => (
+                          <div className={styles.fileRow} key={file.path}>
+                            <span className={styles.fileMeta}><strong>{file.sourceLabel}</strong><code title={file.path}>{file.path}</code></span>
+                            <span className={styles.fileSize}>{formatBytes(file.sizeBytes)}</span>
+                          </div>
+                        ))}
+                        {visibleCount < group.files.length && (
+                          <button className={styles.moreButton} type="button" onClick={() => setVisibleCounts((current) => ({ ...current, [group.id]: visibleCount + 100 }))}>
+                            再显示 {Math.min(100, group.files.length - visibleCount)} 个文件
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <p className={styles.scanFootnote}>已跳过 {result.skippedPaths} 个受保护或链接路径；读取失败 {result.errorCount} 处。</p>
+            </div>
+          ) : result ? (
+            <div className={styles.emptyState}><ShieldCheck size={24} aria-hidden="true" /><span>没有发现符合安全规则的候选文件</span></div>
+          ) : (
+            <div className={styles.scopeGrid}>
+              <span>用户临时内容</span><span>浏览器与应用缓存</span><span>开发工具缓存</span><span>图形着色器缓存</span>
+            </div>
+          )}
         </section>
       </main>
     </div>

@@ -5,6 +5,50 @@ export interface DiskOverview {
   usedBytes: number
 }
 
+export type ScanCategoryId =
+  | 'user-junk'
+  | 'browser-cache'
+  | 'application-cache'
+  | 'developer-cache'
+  | 'gpu-cache'
+
+export interface ScanFileItem {
+  path: string
+  sizeBytes: number
+  modifiedAt: string
+  sourceLabel: string
+}
+
+export interface ScanGroup {
+  id: ScanCategoryId
+  label: string
+  description: string
+  sizeBytes: number
+  fileCount: number
+  files: ScanFileItem[]
+}
+
+export interface ScanResult {
+  startedAt: string
+  finishedAt: string
+  totalBytes: number
+  fileCount: number
+  groups: ScanGroup[]
+  skippedPaths: number
+  errorCount: number
+}
+
+export interface ScanProgress {
+  completedTargets: number
+  totalTargets: number
+  currentLabel: string
+  filesFound: number
+  bytesFound: number
+}
+
 export interface CleanMyWinApi {
   getDiskOverview: () => Promise<DiskOverview>
+  scanCleanableFiles: () => Promise<ScanResult | null>
+  cancelScan: () => Promise<boolean>
+  onScanProgress: (listener: (progress: ScanProgress) => void) => () => void
 }

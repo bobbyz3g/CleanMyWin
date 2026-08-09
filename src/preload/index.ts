@@ -2,7 +2,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { CleanMyWinApi } from '../shared/contracts'
 
 const api: CleanMyWinApi = {
-  getDiskOverview: () => ipcRenderer.invoke('system:get-disk-overview')
+  getDiskOverview: () => ipcRenderer.invoke('system:get-disk-overview'),
+  scanCleanableFiles: () => ipcRenderer.invoke('scan:start'),
+  cancelScan: () => ipcRenderer.invoke('scan:cancel'),
+  onScanProgress: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof listener>[0]): void => listener(progress)
+    ipcRenderer.on('scan:progress', handler)
+    return () => ipcRenderer.removeListener('scan:progress', handler)
+  }
 }
 
 contextBridge.exposeInMainWorld('cleanMyWin', api)
