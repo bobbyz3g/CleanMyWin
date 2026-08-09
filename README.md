@@ -38,3 +38,7 @@ src/shared     跨进程共享类型
 - 仅通过 `contextBridge` 暴露最小 API。
 - 扫描与清理分离，默认只扫描。
 - 清理结果必须可复核，高风险位置永不默认选择。
+
+## 许可证
+
+本项目采用 [GNU General Public License v3.0](LICENSE)，SPDX 标识为 `GPL-3.0-only`。
