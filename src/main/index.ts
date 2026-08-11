@@ -24,6 +24,9 @@ async function getDiskOverview(): Promise<DiskOverview> {
 }
 
 function createWindow(): void {
+  const icon = app.isPackaged
+    ? join(process.resourcesPath, 'icon.ico')
+    : join(process.cwd(), 'resources', 'icon.ico')
   const window = new BrowserWindow({
     width: 1180,
     height: 760,
@@ -32,6 +35,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#f2f5f8',
+    icon,
     ...(isWindows ? { backgroundMaterial: 'mica' as const } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
