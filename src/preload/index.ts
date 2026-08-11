@@ -3,6 +3,7 @@ import type { CleanMyWinApi } from '../shared/contracts'
 
 const api: CleanMyWinApi = {
   getDiskOverview: () => ipcRenderer.invoke('system:get-disk-overview'),
+  getInstalledApps: () => ipcRenderer.invoke('apps:list-installed'),
   scanCleanableFiles: () => ipcRenderer.invoke('scan:start'),
   cancelScan: () => ipcRenderer.invoke('scan:cancel'),
   onScanProgress: (listener) => {

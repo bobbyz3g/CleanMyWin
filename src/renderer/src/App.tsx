@@ -6,7 +6,6 @@ import {
   Code2,
   Cpu,
   FileClock,
-  Files,
   Gauge,
   Globe2,
   HardDrive,
@@ -19,14 +18,15 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { DiskOverview, ScanCategoryId, ScanProgress, ScanResult } from '../../shared/contracts'
+import InstalledAppsView from './InstalledAppsView'
 import styles from './App.module.css'
 
 type ScanState = 'idle' | 'scanning' | 'stopping' | 'complete' | 'error'
+type ViewId = 'scan' | 'apps'
 
 const navItems = [
-  { label: '扫描概览', icon: Search, active: true },
-  { label: '可清理文件', icon: Files },
-  { label: '应用缓存', icon: AppWindow }
+  { id: 'scan' as const, label: '扫描概览', icon: Search },
+  { id: 'apps' as const, label: '应用卸载', icon: AppWindow }
 ]
 
 const categoryIcons: Record<ScanCategoryId, typeof FileClock> = {
@@ -46,6 +46,7 @@ const formatBytes = (bytes: number): string => {
 }
 
 export default function App(): React.JSX.Element {
+  const [activeView, setActiveView] = useState<ViewId>('scan')
   const [disk, setDisk] = useState<DiskOverview | null>(null)
   const [scanState, setScanState] = useState<ScanState>('idle')
   const [progress, setProgress] = useState<ScanProgress | null>(null)
@@ -135,19 +136,31 @@ export default function App(): React.JSX.Element {
         </div>
 
         <nav className={styles.navigation}>
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <button key={label} className={`${styles.navItem} ${active ? styles.navItemActive : ''}`} type="button">
+          {navItems.map(({ id, label, icon: Icon }) => {
+            const active = activeView === id
+            return (
+            <button
+              key={id}
+              className={`${styles.navItem} ${active ? styles.navItemActive : ''}`}
+              type="button"
+              onClick={() => setActiveView(id)}
+              aria-current={active ? 'page' : undefined}
+            >
               <Icon size={18} aria-hidden="true" />
               <span>{label}</span>
               {active && <span className={styles.activeDot} aria-hidden="true" />}
             </button>
-          ))}
+            )
+          })}
         </nav>
 
         <div className={styles.sidebarFooter}>
           <div className={styles.safetyNote}>
             <ShieldCheck size={18} aria-hidden="true" />
-            <div><strong>仅扫描模式</strong><span>当前版本无法删除文件</span></div>
+            <div>
+              <strong>{activeView === 'scan' ? '仅扫描模式' : '仅展示模式'}</strong>
+              <span>{activeView === 'scan' ? '当前版本无法删除文件' : '当前版本不会卸载应用'}</span>
+            </div>
           </div>
           <button className={styles.navItem} type="button">
             <Settings size={18} aria-hidden="true" />
@@ -157,6 +170,7 @@ export default function App(): React.JSX.Element {
       </aside>
 
       <main id="main-content" className={styles.workspace}>
+        {activeView === 'apps' ? <InstalledAppsView /> : <>
         <header className={styles.header}>
           <div>
             <p className={styles.eyebrow}>安全扫描</p>
@@ -276,6 +290,7 @@ export default function App(): React.JSX.Element {
             </div>
           )}
         </section>
+        </>}
       </main>
     </div>
   )

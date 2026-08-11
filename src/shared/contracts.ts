@@ -46,8 +46,27 @@ export interface ScanProgress {
   bytesFound: number
 }
 
+export type InstalledAppSource = 'classic' | 'store'
+
+export interface InstalledApplication {
+  id: string
+  name: string
+  publisher: string | null
+  version: string | null
+  estimatedSizeBytes: number | null
+  installDate: string | null
+  source: InstalledAppSource
+}
+
+export interface InstalledAppsResult {
+  scannedAt: string
+  apps: InstalledApplication[]
+  errorCount: number
+}
+
 export interface CleanMyWinApi {
   getDiskOverview: () => Promise<DiskOverview>
+  getInstalledApps: () => Promise<InstalledAppsResult>
   scanCleanableFiles: () => Promise<ScanResult | null>
   cancelScan: () => Promise<boolean>
   onScanProgress: (listener: (progress: ScanProgress) => void) => () => void
