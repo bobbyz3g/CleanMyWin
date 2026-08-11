@@ -123,6 +123,8 @@
 
 .appRow:last-child { border-bottom: 0; }
 .appIcon { width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent-ink); background: var(--accent-soft); border-radius: 10px; }
+.appIconImage { width: 28px; height: 28px; object-fit: contain; animation: iconReveal 120ms cubic-bezier(0.2, 0, 0, 1); }
+@keyframes iconReveal { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
 .appIdentity { min-width: 0; display: grid; gap: 4px; }
 .appIdentity strong, .appIdentity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .appIdentity strong { color: var(--text); font-size: 13px; font-weight: 650; }
@@ -178,6 +180,7 @@
 @media (prefers-reduced-motion: reduce) {
   .refreshButton { transition-duration: 0.01ms; }
   .spinner { animation: pulse 1800ms ease-in-out infinite alternate; }
+  .appIconImage { animation: none; }
 }
 
 @keyframes pulse { from { opacity: 0.42; } to { opacity: 1; } }

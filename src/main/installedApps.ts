@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { extname, isAbsolute } from 'node:path'
 import { promisify } from 'node:util'
 import type { InstalledApplication, InstalledAppsResult, InstalledAppSource } from '../shared/contracts'
 
@@ -11,12 +13,21 @@ interface RawInstalledApp {
   SizeKB?: unknown
   InstallDate?: unknown
   Source?: unknown
+  IconPath?: unknown
 }
 
 interface RawInstalledAppsResult {
   Apps?: unknown
   ErrorCount?: unknown
 }
+
+interface ParsedInstalledApps {
+  result: Omit<InstalledAppsResult, 'scannedAt'>
+  iconCandidates: Map<string, string>
+}
+
+let installedAppIconCandidates = new Map<string, string>()
+let installedAppIconCache = new Map<string, Promise<string | null>>()
 
 const discoveryScript = String.raw`
 $ErrorActionPreference = 'SilentlyContinue'
@@ -40,6 +51,23 @@ function Test-ProtectedApp([string]$Name) {
     if ($Name -like $pattern) { return $true }
   }
   return $false
+}
+
+function Resolve-StoreLogo([string]$InstallLocation, [string]$RelativePath) {
+  if ([string]::IsNullOrWhiteSpace($InstallLocation) -or [string]::IsNullOrWhiteSpace($RelativePath)) { return $null }
+  try {
+    $exact = Join-Path $InstallLocation $RelativePath
+    if (Test-Path -LiteralPath $exact -PathType Leaf) { return $exact }
+    $directory = Split-Path -Parent $exact
+    $baseName = [IO.Path]::GetFileNameWithoutExtension($exact)
+    $extension = [IO.Path]::GetExtension($exact)
+    if (-not (Test-Path -LiteralPath $directory -PathType Container)) { return $null }
+    $variant = Get-ChildItem -LiteralPath $directory -File -Filter "$baseName*$extension" |
+      Sort-Object @{ Expression = { if ($_.Name -match 'targetsize-48|scale-200') { 0 } elseif ($_.Name -match 'scale-100') { 1 } else { 2 } } } |
+      Select-Object -First 1
+    if ($variant) { return $variant.FullName }
+  } catch { }
+  return $null
 }
 
 $apps = [System.Collections.Generic.List[object]]::new()
@@ -66,6 +94,7 @@ foreach ($path in $registryPaths) {
         SizeKB = $sizeKB
         InstallDate = if ([string]$item.InstallDate -match '^\d{8}$') { [string]$item.InstallDate } else { $null }
         Source = 'classic'
+        IconPath = if ($item.DisplayIcon) { [Environment]::ExpandEnvironmentVariables([string]$item.DisplayIcon) } else { $null }
       })
     }
   } catch { $errorCount++ }
@@ -74,10 +103,13 @@ foreach ($path in $registryPaths) {
 try {
   foreach ($package in @(Get-AppxPackage | Where-Object { -not $_.IsFramework -and $_.SignatureKind -ne 'System' })) {
     $name = [string]$package.Name
+    $logoPath = $null
     try {
       $manifest = Get-AppxPackageManifest -Package $package.PackageFullName
       $displayName = [string]$manifest.Package.Properties.DisplayName
       if ($displayName -and -not $displayName.StartsWith('ms-resource:')) { $name = $displayName }
+      $application = @($manifest.Package.Applications.Application)[0]
+      $logoPath = Resolve-StoreLogo ([string]$package.InstallLocation) ([string]$application.VisualElements.Square44x44Logo)
     } catch { }
     if ([string]::IsNullOrWhiteSpace($name) -or (Test-ProtectedApp $name)) { continue }
     $apps.Add([pscustomobject]@{
@@ -87,6 +119,7 @@ try {
       SizeKB = 0
       InstallDate = $null
       Source = 'store'
+      IconPath = $logoPath
     })
   }
 } catch { $errorCount++ }
@@ -105,10 +138,22 @@ const parseInstallDate = (value: unknown): string | null => {
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`
 }
 
-export function parseInstalledAppsPayload(payload: string): Omit<InstalledAppsResult, 'scannedAt'> {
+export const parseDisplayIconPath = (value: unknown): string | null => {
+  const raw = asOptionalString(value)
+  if (!raw) return null
+  const quoted = raw.match(/^"([^"]+)"(?:\s*,\s*-?\d+)?$/)
+  if (quoted?.[1]) return quoted[1]
+  return raw.replace(/\s*,\s*-?\d+\s*$/, '').trim() || null
+}
+
+const createAppId = (source: InstalledAppSource, name: string, version: string | null, publisher: string | null): string =>
+  createHash('sha256').update(`${source}\u0000${name}\u0000${version ?? ''}\u0000${publisher ?? ''}`).digest('hex')
+
+const parseInstalledApps = (payload: string): ParsedInstalledApps => {
   const parsed = JSON.parse(payload.replace(/^\uFEFF/, '').trim()) as RawInstalledAppsResult
   const rawApps = Array.isArray(parsed.Apps) ? parsed.Apps : parsed.Apps ? [parsed.Apps] : []
   const deduplicated = new Map<string, InstalledApplication>()
+  const iconCandidates = new Map<string, string>()
 
   for (const candidate of rawApps) {
     if (!candidate || typeof candidate !== 'object') continue
@@ -119,7 +164,7 @@ export function parseInstalledAppsPayload(payload: string): Omit<InstalledAppsRe
     const version = asOptionalString(raw.Version)
     const source: InstalledAppSource = raw.Source === 'store' ? 'store' : 'classic'
     const sizeKB = typeof raw.SizeKB === 'number' && Number.isFinite(raw.SizeKB) && raw.SizeKB > 0 ? raw.SizeKB : null
-    const id = `${source}:${name}:${version ?? ''}:${publisher ?? ''}`.toLocaleLowerCase()
+    const id = createAppId(source, name, version, publisher)
     const app: InstalledApplication = {
       id,
       name,
@@ -130,16 +175,28 @@ export function parseInstalledAppsPayload(payload: string): Omit<InstalledAppsRe
       source
     }
     const existing = deduplicated.get(id)
-    if (!existing || (app.estimatedSizeBytes ?? 0) > (existing.estimatedSizeBytes ?? 0)) deduplicated.set(id, app)
+    if (!existing || (app.estimatedSizeBytes ?? 0) > (existing.estimatedSizeBytes ?? 0)) {
+      deduplicated.set(id, app)
+      const iconPath = parseDisplayIconPath(raw.IconPath)
+      if (iconPath) iconCandidates.set(id, iconPath)
+      else iconCandidates.delete(id)
+    }
   }
 
   return {
-    apps: [...deduplicated.values()].sort((a, b) => {
-      const sizeDifference = (b.estimatedSizeBytes ?? -1) - (a.estimatedSizeBytes ?? -1)
-      return sizeDifference || a.name.localeCompare(b.name, 'zh-CN')
-    }),
-    errorCount: typeof parsed.ErrorCount === 'number' ? parsed.ErrorCount : 0
+    result: {
+      apps: [...deduplicated.values()].sort((a, b) => {
+        const sizeDifference = (b.estimatedSizeBytes ?? -1) - (a.estimatedSizeBytes ?? -1)
+        return sizeDifference || a.name.localeCompare(b.name, 'zh-CN')
+      }),
+      errorCount: typeof parsed.ErrorCount === 'number' ? parsed.ErrorCount : 0
+    },
+    iconCandidates
   }
+}
+
+export function parseInstalledAppsPayload(payload: string): Omit<InstalledAppsResult, 'scannedAt'> {
+  return parseInstalledApps(payload).result
 }
 
 export async function getInstalledApps(): Promise<InstalledAppsResult> {
@@ -151,6 +208,31 @@ export async function getInstalledApps(): Promise<InstalledAppsResult> {
     ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', discoveryScript],
     { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 60_000, windowsHide: true }
   )
-  const result = parseInstalledAppsPayload(String(stdout))
-  return { scannedAt: new Date().toISOString(), ...result }
+  const parsed = parseInstalledApps(String(stdout))
+  installedAppIconCandidates = parsed.iconCandidates
+  installedAppIconCache = new Map()
+  return { scannedAt: new Date().toISOString(), ...parsed.result }
+}
+
+export async function getInstalledAppIcon(appId: string): Promise<string | null> {
+  const candidate = installedAppIconCandidates.get(appId)
+  if (!candidate || !isAbsolute(candidate)) return null
+  const cached = installedAppIconCache.get(appId)
+  if (cached) return cached
+
+  const iconPromise = (async (): Promise<string | null> => {
+    try {
+      const { app, nativeImage } = await import('electron')
+      const extension = extname(candidate).toLocaleLowerCase()
+      const fileImage = ['.png', '.jpg', '.jpeg', '.ico'].includes(extension)
+        ? nativeImage.createFromPath(candidate)
+        : await app.getFileIcon(candidate, { size: 'normal' })
+      if (fileImage.isEmpty()) return null
+      return fileImage.resize({ width: 28, height: 28, quality: 'best' }).toDataURL()
+    } catch {
+      return null
+    }
+  })()
+  installedAppIconCache.set(appId, iconPromise)
+  return iconPromise
 }

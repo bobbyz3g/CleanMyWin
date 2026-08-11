@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseInstalledAppsPayload } from './installedApps.ts'
+import { parseDisplayIconPath, parseInstalledAppsPayload } from './installedApps.ts'
 
 test('normalizes, deduplicates and sorts installed application data', () => {
   const result = parseInstalledAppsPayload(JSON.stringify({
@@ -19,4 +19,11 @@ test('normalizes, deduplicates and sorts installed application data', () => {
   assert.equal(result.apps[1]?.installDate, '2026-08-10')
   assert.equal(result.apps[2]?.estimatedSizeBytes, null)
   assert.equal(result.errorCount, 1)
+  assert.match(result.apps[0]?.id ?? '', /^[a-f0-9]{64}$/)
+})
+
+test('normalizes registry display icon paths without exposing icon indexes', () => {
+  assert.equal(parseDisplayIconPath('"C:\\Program Files\\Example\\app.exe",0'), 'C:\\Program Files\\Example\\app.exe')
+  assert.equal(parseDisplayIconPath('C:\\Apps\\example.dll, -12'), 'C:\\Apps\\example.dll')
+  assert.equal(parseDisplayIconPath(null), null)
 })

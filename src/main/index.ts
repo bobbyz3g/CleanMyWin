@@ -3,7 +3,7 @@ import { statfs } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DiskOverview, ScanProgress, ScanResult } from '../shared/contracts'
 import { ScanCancelledError, scanCleanableFiles } from './scanner'
-import { getInstalledApps } from './installedApps'
+import { getInstalledAppIcon, getInstalledApps } from './installedApps'
 
 const isWindows = process.platform === 'win32'
 let activeScan: Promise<ScanResult | null> | null = null
@@ -43,6 +43,7 @@ function createWindow(): void {
 
   window.once('ready-to-show', () => window.show())
 
+
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) void shell.openExternal(url)
     return { action: 'deny' }
@@ -59,6 +60,10 @@ app.whenReady().then(() => {
   app.setAppUserModelId('dev.cleanmywin.app')
   ipcMain.handle('system:get-disk-overview', getDiskOverview)
   ipcMain.handle('apps:list-installed', getInstalledApps)
+  ipcMain.handle('apps:get-icon', (_event, appId: unknown) => {
+    if (typeof appId !== 'string' || appId.length !== 64) return null
+    return getInstalledAppIcon(appId)
+  })
   ipcMain.handle('scan:start', (event) => {
     if (activeScan) return activeScan
 

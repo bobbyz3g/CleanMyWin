@@ -67,6 +67,7 @@ export interface InstalledAppsResult {
 export interface CleanMyWinApi {
   getDiskOverview: () => Promise<DiskOverview>
   getInstalledApps: () => Promise<InstalledAppsResult>
+  getInstalledAppIcon: (appId: string) => Promise<string | null>
   scanCleanableFiles: () => Promise<ScanResult | null>
   cancelScan: () => Promise<boolean>
   onScanProgress: (listener: (progress: ScanProgress) => void) => () => void

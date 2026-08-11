@@ -1,5 +1,5 @@
 import { AppWindow, Package, RefreshCw, Search, ShieldCheck } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { InstalledApplication, InstalledAppsResult } from '../../shared/contracts'
 import styles from './InstalledAppsView.module.css'
 
@@ -17,6 +17,49 @@ const formatBytes = (bytes: number | null): string => {
 const matchesQuery = (app: InstalledApplication, query: string): boolean => {
   const searchable = [app.name, app.publisher, app.version].filter(Boolean).join(' ').toLocaleLowerCase()
   return searchable.includes(query.toLocaleLowerCase())
+}
+
+function InstalledAppIcon({ app }: { app: InstalledApplication }): React.JSX.Element {
+  const containerRef = useRef<HTMLSpanElement>(null)
+  const [iconUrl, setIconUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !window.cleanMyWin) return
+    let active = true
+    const loadIcon = (): void => {
+      void window.cleanMyWin.getInstalledAppIcon(app.id).then((url) => {
+        if (active) setIconUrl(url)
+      }).catch(() => {
+        if (active) setIconUrl(null)
+      })
+    }
+
+    if (!('IntersectionObserver' in window)) {
+      loadIcon()
+      return () => { active = false }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      observer.disconnect()
+      loadIcon()
+    }, { rootMargin: '180px 0px' })
+    observer.observe(container)
+
+    return () => {
+      active = false
+      observer.disconnect()
+    }
+  }, [app.id])
+
+  return (
+    <span className={styles.appIcon} ref={containerRef}>
+      {iconUrl
+        ? <img className={styles.appIconImage} src={iconUrl} alt="" width="28" height="28" />
+        : <Package size={19} aria-hidden="true" />}
+    </span>
+  )
 }
 
 export default function InstalledAppsView(): React.JSX.Element {
@@ -95,7 +138,7 @@ export default function InstalledAppsView(): React.JSX.Element {
         <div className={styles.appList} role="list" aria-label="已安装应用">
           {visibleApps.map((app) => (
             <article className={styles.appRow} role="listitem" key={app.id}>
-              <span className={styles.appIcon}><Package size={19} aria-hidden="true" /></span>
+              <InstalledAppIcon app={app} />
               <span className={styles.appIdentity}>
                 <strong title={app.name}>{app.name}</strong>
                 <small title={app.publisher ?? undefined}>{app.publisher ?? '未知发布者'}</small>
