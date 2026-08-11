@@ -10,7 +10,6 @@ import {
   Globe2,
   HardDrive,
   Info,
-  Search,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -25,7 +24,7 @@ type ScanState = 'idle' | 'scanning' | 'stopping' | 'complete' | 'error'
 type ViewId = 'scan' | 'apps'
 
 const navItems = [
-  { id: 'scan' as const, label: '扫描概览', icon: Search },
+  { id: 'scan' as const, label: '磁盘清理', icon: HardDrive },
   { id: 'apps' as const, label: '应用卸载', icon: AppWindow }
 ]
 
