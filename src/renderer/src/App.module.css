@@ -329,6 +329,77 @@
   border-bottom: 1px solid var(--divider);
 }
 
+.cleanupActions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.selectedCleanupButton,
+.cleanupAllButton {
+  min-width: 132px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 120ms var(--ease), opacity 120ms var(--ease), box-shadow 120ms var(--ease), background-color 120ms var(--ease);
+}
+
+.selectedCleanupButton {
+  color: var(--text-secondary);
+  background: var(--row-hover);
+  box-shadow: inset 0 0 0 1px var(--divider);
+}
+
+.cleanupAllButton {
+  color: var(--accent-on);
+  background: var(--accent);
+  box-shadow: 0 4px 12px color-mix(in oklch, var(--accent) 24%, transparent);
+}
+
+.selectedCleanupButton span,
+.cleanupAllButton span { display: grid; gap: 1px; font-size: 12px; font-weight: 650; text-align: left; }
+.selectedCleanupButton strong,
+.cleanupAllButton strong { color: inherit; font-size: 10px; font-weight: 550; opacity: 0.78; font-variant-numeric: tabular-nums; }
+.selectedCleanupButton:disabled,
+.cleanupAllButton:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
+
+.cleanupStatus,
+.cleanupSuccess,
+.cleanupError {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 14px 2px 0;
+  padding: 10px 13px;
+  border-radius: var(--radius-control);
+  font-size: 12px;
+}
+
+.cleanupStatus { color: var(--accent-ink); background: var(--accent-soft); }
+.cleanupSuccess { color: var(--success-ink); background: var(--success-soft); }
+.cleanupError { color: var(--danger-ink); background: var(--danger-soft); }
+.cleanupStatus > svg,
+.cleanupSuccess > svg,
+.cleanupError > svg { flex: 0 0 auto; }
+.cleanupStatus span,
+.cleanupSuccess span,
+.cleanupError span { display: grid; gap: 2px; line-height: 1.45; }
+.cleanupStatus strong,
+.cleanupSuccess strong,
+.cleanupError strong { font-weight: 650; }
+
+.spinningIcon { animation: cleanupSpin 900ms linear infinite; }
+
+@keyframes cleanupSpin { to { transform: rotate(360deg); } }
+
 .summaryHeading h2 {
   margin: 5px 0 0;
   font-size: 19px;
@@ -345,19 +416,75 @@
   width: 100%;
   min-height: 72px;
   display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 8px 3px;
+  color: var(--text);
+  background: transparent;
+  transition: background-color 120ms var(--ease);
+}
+
+.categoryToggle {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
   grid-template-columns: 38px minmax(0, 1fr) 96px 20px;
   align-items: center;
   gap: 12px;
-  padding: 8px 3px;
+  padding: 0;
   border: 0;
-  border-bottom: 0;
-  color: var(--text);
+  color: inherit;
   background: transparent;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: transform 120ms var(--ease), background-color 120ms var(--ease);
+  transition: transform 120ms var(--ease);
 }
+
+.rowSelected { background: color-mix(in oklch, var(--accent-soft) 44%, transparent); }
+
+.selectionControl {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  margin-left: -6px;
+  cursor: pointer;
+}
+
+.selectionControl input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.checkboxVisual {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: transparent;
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: 5px;
+  box-shadow: 0 1px 1px rgb(23 37 51 / 4%);
+  transition: transform 120ms var(--ease), background-color 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+}
+
+.selectionControl input:checked + .checkboxVisual,
+.selectionControl input:indeterminate + .checkboxVisual {
+  color: var(--accent-on);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.selectionControl input:indeterminate + .checkboxVisual svg { display: none; }
+.selectionControl input:indeterminate + .checkboxVisual::after { content: ''; width: 8px; height: 2px; background: currentColor; border-radius: 99px; }
+.selectionControl input:disabled + .checkboxVisual { opacity: 0.52; }
+.selectionControl input:focus-visible + .checkboxVisual { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .categoryIcon { width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent-ink); background: var(--accent-soft); border-radius: 10px; }
 .categoryText { min-width: 0; display: grid; gap: 4px; }
@@ -385,12 +512,14 @@
 .fileRow {
   min-height: 46px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 18px;
-  padding: 7px 10px;
+  gap: 12px;
+  padding: 7px 10px 7px 4px;
   border-radius: 7px;
 }
+.fileRowSelected { background: color-mix(in oklch, var(--accent-soft) 38%, transparent); }
+.fileRow .selectionControl { margin-left: -6px; }
 
 .fileMeta { min-width: 0; display: grid; gap: 3px; }
 .fileMeta strong { color: var(--text-secondary); font-size: 11px; font-weight: 650; }
@@ -459,23 +588,75 @@
 .navItem:active,
 .primaryButton:active,
 .stopButton:active,
-.categoryRow:active { transform: scale(0.96); }
+.categoryToggle:active,
+.selectedCleanupButton:active,
+.cleanupAllButton:active,
+.dialogCancel:active,
+.dialogConfirm:active { transform: scale(0.96); }
 
 .navItem:focus-visible,
 .primaryButton:focus-visible,
 .stopButton:focus-visible,
-.categoryRow:focus-visible,
+.categoryToggle:focus-visible,
 .moreButton:focus-visible,
 .skipLink:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
+.selectedCleanupButton:focus-visible,
+.cleanupAllButton:focus-visible,
+.dialogClose:focus-visible,
+.dialogCancel:focus-visible,
+.dialogConfirm:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.confirmDialog {
+  width: min(460px, calc(100vw - 48px));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-panel);
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 24px 72px rgb(15 23 32 / 28%);
+}
+
+.confirmDialog::backdrop { background: rgb(17 27 36 / 48%); }
+
+.dialogHeading {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 22px 16px;
+}
+
+.dialogIcon { width: 42px; height: 42px; display: grid; place-items: center; color: var(--danger-ink); background: var(--danger-soft); border-radius: 12px; }
+.dialogHeading p { margin: 0 0 3px; color: var(--text-muted); font-size: 11px; font-weight: 650; }
+.dialogHeading h2 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 650; letter-spacing: -0.012em; }
+.dialogClose { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); color: var(--text-muted); background: transparent; cursor: pointer; }
+.dialogMessage { margin: 0; padding: 0 22px; color: var(--text-secondary); font-size: 13px; line-height: 1.75; text-wrap: pretty; }
+.dialogMessage strong { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
+.dialogSafety { display: flex; align-items: flex-start; gap: 9px; margin: 16px 22px 0; padding: 11px 12px; color: var(--success-ink); background: var(--success-soft); border-radius: var(--radius-control); font-size: 11px; line-height: 1.5; }
+.dialogSafety svg { flex: 0 0 auto; margin-top: 1px; }
+.dialogActions { display: flex; justify-content: flex-end; gap: 8px; padding: 20px 22px 22px; }
+.dialogCancel,
+.dialogConfirm { min-width: 104px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border: 0; border-radius: var(--radius-control); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: transform 120ms var(--ease), background-color 120ms var(--ease), box-shadow 120ms var(--ease); }
+.dialogCancel { color: var(--text-secondary); background: var(--row-hover); box-shadow: inset 0 0 0 1px var(--divider); }
+.dialogConfirm { color: oklch(98% 0.008 28); background: var(--danger); box-shadow: 0 4px 12px color-mix(in oklch, var(--danger) 24%, transparent); }
+
 @media (hover: hover) {
   .navItem:hover { color: var(--text); background: color-mix(in oklch, var(--surface) 60%, transparent); }
   .primaryButton:hover { box-shadow: 0 7px 18px color-mix(in oklch, var(--accent) 38%, transparent); }
   .stopButton:hover { color: var(--text); background: var(--row-hover); }
   .categoryRow:hover { background: var(--row-hover); }
+  .selectedCleanupButton:not(:disabled):hover { color: var(--text); background: var(--surface); }
+  .cleanupAllButton:not(:disabled):hover { box-shadow: 0 6px 16px color-mix(in oklch, var(--accent) 34%, transparent); }
+  .dialogClose:hover,
+  .dialogCancel:hover { color: var(--text); background: var(--row-hover); }
+  .dialogConfirm:hover { box-shadow: 0 6px 16px color-mix(in oklch, var(--danger) 34%, transparent); }
   .fileRow:hover { background: var(--row-hover); }
   .moreButton:hover { background: var(--row-hover); }
 }
@@ -486,11 +667,14 @@
   .safetyNote span { display: none; }
   .hero { gap: 32px; padding-inline: 8px; }
   .scopeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summaryHeading { align-items: flex-start; }
+  .cleanupActions { flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .navItem, .primaryButton, .stopButton, .categoryRow { transition-duration: 0.01ms; }
+  .navItem, .primaryButton, .stopButton, .categoryToggle, .selectedCleanupButton, .cleanupAllButton, .dialogCancel, .dialogConfirm { transition-duration: 0.01ms; }
   .orbitScanning::after { animation: scanPulse 1800ms ease-in-out infinite alternate; }
+  .spinningIcon { animation: scanPulse 1800ms ease-in-out infinite alternate; }
 }
 
 @keyframes scanPulse {

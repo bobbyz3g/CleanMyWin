@@ -46,6 +46,26 @@ export interface ScanProgress {
   bytesFound: number
 }
 
+export type CleanupRequest =
+  | { mode: 'all'; scanFinishedAt: string }
+  | { mode: 'selected'; scanFinishedAt: string; paths: string[] }
+
+export interface CleanupProgress {
+  completedFiles: number
+  totalFiles: number
+  cleanedFiles: number
+  reclaimedBytes: number
+}
+
+export interface CleanupResult {
+  requestedCount: number
+  cleanedCount: number
+  reclaimedBytes: number
+  skippedCount: number
+  failedCount: number
+  cleanedPaths: string[]
+}
+
 export type InstalledAppSource = 'classic' | 'store'
 
 export interface InstalledApplication {
@@ -70,5 +90,7 @@ export interface CleanMyWinApi {
   getInstalledAppIcon: (appId: string) => Promise<string | null>
   scanCleanableFiles: () => Promise<ScanResult | null>
   cancelScan: () => Promise<boolean>
+  cleanupFiles: (request: CleanupRequest) => Promise<CleanupResult>
   onScanProgress: (listener: (progress: ScanProgress) => void) => () => void
+  onCleanupProgress: (listener: (progress: CleanupProgress) => void) => () => void
 }

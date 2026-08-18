@@ -14,6 +14,9 @@
   --success: oklch(63% 0.135 151);
   --success-ink: oklch(42% 0.102 151);
   --success-soft: oklch(94% 0.036 151);
+  --danger: oklch(56% 0.19 28);
+  --danger-ink: oklch(45% 0.16 28);
+  --danger-soft: oklch(94% 0.035 28);
   --divider: oklch(86% 0.009 245);
   --divider-subtle: oklch(91% 0.006 245);
   --ring-track: oklch(90% 0.012 245);
@@ -54,6 +57,9 @@ button { font-family: inherit; }
     --success: oklch(72% 0.12 151);
     --success-ink: oklch(80% 0.095 151);
     --success-soft: oklch(27% 0.035 151);
+    --danger: oklch(68% 0.17 28);
+    --danger-ink: oklch(78% 0.11 28);
+    --danger-soft: oklch(28% 0.045 28);
     --divider: rgb(255 255 255 / 9%);
     --divider-subtle: rgb(255 255 255 / 6%);
     --ring-track: oklch(30% 0.014 245);
